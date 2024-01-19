@@ -1,70 +1,57 @@
-import struct
-import socket
-import ctypes
-import uuid
-import os
-from decouple import config
-from database.database import connect_pg
+from framework.database import Database
+from sqlalchemy.orm import sessionmaker
+from models import Project
 
 table = "project"
-conn = connect_pg()
+
+class Repository:
+    db = Database().postgres()
+    def get_data(self):
+        Session = sessionmaker(bind=self.db)
+        session = Session()
+        result = {}
+        result = session.query(Project).all()
+        session.close()
+        return result
 
 
-def get_data():
-    cur = conn.cursor()
-    try:
-        cur.execute("""SELECT * from {}""".format(table))
-        result = cur.fetchall()
-    except Exception as err:
-        cur.execute("ROLLBACK")
-    return result
+    def get_data_by_id(self,data):
+        result = {}
+        Session = sessionmaker(bind=self.db)
+        session = Session()
+        result = session.query(Project).filter(Project.project_id == data).one()
+        session.close()
+        return result
 
 
-def get_data_by_id(data):
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            "SELECT * from {} where project_id = '{}'".format(table, data['id']))
-        result = cur.fetchall()
-    except Exception as err:
-        cur.execute("ROLLBACK")
-    return result
+    def add_data(self,data):
+        Session = sessionmaker(bind=self.db)
+        session = Session()
+        query = Project(project_id=data['project_id'],
+                        project_name=data['project_name'])
+        session.add(query)
+        session.commit()
+        session.close()
+        return data
 
 
-def add_data(data):
-    cur = conn.cursor()
-    err = ""
-    try:
-        cur.execute(
-            "INSERT INTO {} (project_id, project_name) VALUES ('{}', '{}')".format(table, data['project_id'], data['project_name']))
-        conn.commit()
-    except Exception as e:
-        err = e
-        cur.execute("ROLLBACK")
-    return data, err
+    def update_data(self,data):
+        Session = sessionmaker(bind=self.db)
+        session = Session()
+        result = session.query(Project).filter(
+            Project.project_id == data['project_id']).one()
+        result.project_name = data['project_name']
+        session.commit()
+        session.close()
+        return data
 
 
-def update_data(data):
-    cur = conn.cursor()
-    err = ""
-    try:
-        cur.execute("UPDATE {} SET project_name = '{}' where project_id = '{}'".format(
-            table, data['project_name'], data['project_id']))
-        conn.commit()
-    except Exception as e:
-        err = e
-        cur.execute("ROLLBACK")
-    return data, err
-
-
-def delete_data(data):
-    cur = conn.cursor()
-    err = ""
-    try:
-        cur.execute(
-            """DELETE from {} WHERE project_id = '{}'""".format(table, data['id']))
-        conn.commit()
-    except Exception as e:
-        err = ""
-        cur.execute("ROLLBACK")
-    return data, err
+    def delete_data(self,data):
+        Session = sessionmaker(bind=self.db)
+        session = Session()
+        query = session.query(Project).filter(Project.project_id == data).one()
+        session.delete(query)
+        session.commit()
+        session.close()
+        return data
+        
